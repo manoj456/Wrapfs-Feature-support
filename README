@@ -1,0 +1,116 @@
+I have first made all the EA working for wrapfs and then kept all conditions specified as below:
+
+
+TASK 1::
+
+I created a test.txt file for checking all conditions
+
+
+For Some other extra EA :
+
+        setfattr -n "user.md5sum" -v 1 test.txt
+        getfattr -d test.txt
+
+        Result for test.txt file ::  user.md5sum='1';
+
+        setfattr -n "user.md5sum" -v 0 test.txt
+        getfattr -d test.txt
+
+        Result for test.txt file ::  user.md5sum='0';
+        Kept conditions for normal flow execution
+
+For Integrity_val EA :
+
+        setfattr -n "user.integrity_val" -v 1 test.txt
+        setfattr -n "user.integrity_val" -v 0 test.txt
+        setfattr -x "user.integrity_val" test.txt
+
+        For both operations operation is not supported.
+        I kept a condition for that not accesing "user.integrity_val" directly in both setxattr and removexattr functions in xattr.c file
+
+For Has_integrity EA :
+
+        setfattr -n "user.has_integrity" -v 0 test.txt
+
+        No Integrity_val is set
+
+        setfattr -n "user.has_integrity" -v 0 test.txt
+
+        Integrity_val is set
+
+        Kept conditions in setxattr function in xattr.c file accordingly
+
+
+        If again, has_integrity is set to 0 ,then Integrity_val successfully removed.
+
+
+        I kept conditions in my setxattr amd removexattr functions so that Integrity_val is removed for removal of has_integrity
+
+For has_integrity value size checks :
+
+        setfattr -n "user.has_integrity" -v 10 test.txt
+        operation not supported and appropriate printk message logged
+
+        setfattr -n "user.has_integrity" -v 3 test.txt
+        operation not supported and appropriate printk message logged
+
+Access conditions :
+
+        Kept conditions for allowing only root users to change has_integrity and Non root users can only query it in setxattr and removexattr funcs in xattr.c file
+
+Wrapfs_open conditions :
+
+        created file test.txt and set has_integrity set to 1 so that integrity_val is also set.
+        Now when i modified the file the content is changed.
+
+        If i didn't update my check sum before closing the file (remove thecondition i keep in wrapfs_close function)
+        then if i try to open the same file then it shows permission denied and file is not opening.
+
+Wrapfs_close conditions :
+
+        I kept condition so that everytime i close the file integrity is updated for modified content.
+        Never throws permission denied as file content modified has been noted and integrity updated.
+
+        File opens successfully.
+
+Trunacate Condition:
+
+        cat>test.txt
+        content replaced  and new integrity set everytime and successfully working.
+
+Only Regular Files condition :
+
+        setfattr -n "user.has_integrity" -v 1 directory
+        setfattr -n "user.has_integrity" -v 0 directory
+
+        No check sum calculated in any case as its directory.
+        kept IS_DIR condition in setxattr func in xattr.c file
+
+
+TASK 2:
+
+        cd directory ->has_integrity is '0'
+
+        Files inside it
+                cat>test1.txt ->doesn't get any has_integrity or integrity_val
+
+        cd directory ->has_integrity is '1'
+
+        Files inside it
+                cat>test2.txt ->Both has_integrity and integrity_val are set.
+
+
+
+COMMANDS THAT I FOLLOWED TO EXECUTE :
+
+        If any reboot   - mount -t ext3 /dev/sdb1 /n/scratch/ -o user_xattr
+                          mount -t wrapfs /n/scratch/ /tmp/
+
+        In wrapfs folder    -  umount /tmp
+
+        In hw2-mtammali folder- make
+                                make modules;make modules_install;make install
+
+        Again In Wrapfs folder- rmmod wrapfs
+                                insmod wrapfs.ko
+                                mount -t wrapfs /n/scratch/ /tmp/
